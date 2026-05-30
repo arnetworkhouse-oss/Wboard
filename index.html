@@ -27,9 +27,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 
 /* TOP BAR */
 #topbar{height:50px;background:var(--tb);display:flex;align-items:center;
-  padding:0 10px;gap:5px;z-index:100;flex-shrink:0;
-  border-bottom:1px solid rgba(255,255,255,.05);overflow-x:auto;scrollbar-width:none}
-#topbar::-webkit-scrollbar{display:none}
+  padding:0 12px;gap:6px;z-index:100;flex-shrink:0;
+  border-bottom:1px solid rgba(255,255,255,.05)}
 .logo{font-size:15px;font-weight:800;color:var(--inv);letter-spacing:-.5px;
   margin-right:6px;white-space:nowrap;display:flex;align-items:center;gap:4px}
 .logo em{color:var(--accent);font-style:normal}
@@ -48,12 +47,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 #main{flex:1;display:flex;overflow:hidden}
 
 /* LEFT TOOLBAR */
-#toolbar{width:54px;background:var(--tb);display:flex;flex-direction:column;
+#toolbar{width:52px;background:var(--tb);display:flex;flex-direction:column;
   align-items:center;padding:8px 0;gap:1px;z-index:90;
-  border-right:1px solid rgba(255,255,255,.05);overflow-y:auto;
-  flex-shrink:0;scrollbar-width:none}
+  border-right:1px solid rgba(255,255,255,.05);
+  overflow:visible;flex-shrink:0}
+.tg{width:100%;padding:0 5px;display:flex;flex-direction:column;gap:1px;overflow:visible}
 #toolbar::-webkit-scrollbar{display:none}
-.tg{width:100%;padding:0 5px;display:flex;flex-direction:column;gap:1px}
 .tdiv{width:30px;height:1px;background:rgba(255,255,255,.07);margin:4px auto}
 
 /* TOOL BUTTON */
@@ -65,11 +64,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .tbtn2.active{background:var(--accent);color:#fff}
 
 /* TOOLTIP */
-.tip{position:absolute;left:56px;top:50%;transform:translateY(-50%);
-  background:#111827;color:#f9fafb;font-size:11px;font-weight:600;
-  padding:5px 10px;border-radius:7px;white-space:nowrap;pointer-events:none;
-  opacity:0;transition:opacity .12s .06s;z-index:9999;
-  box-shadow:0 4px 14px rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.09)}
+.tip{position:fixed;left:auto;top:auto;transform:none;
+  background:#111827;color:#f9fafb;font-size:11.5px;font-weight:600;
+  padding:6px 11px;border-radius:7px;white-space:nowrap;pointer-events:none;
+  opacity:0;transition:opacity .13s .07s;z-index:99999;
+  box-shadow:0 4px 16px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.1);
+  margin-left:8px}
 .tip::before{content:'';position:absolute;right:100%;top:50%;transform:translateY(-50%);
   border:5px solid transparent;border-right-color:#111827}
 .tbtn2:hover .tip{opacity:1}
@@ -102,10 +102,10 @@ canvas{position:absolute;top:0;left:0}
 #badd:hover{background:var(--accent);border-color:var(--accent);color:#fff}
 
 /* RIGHT PANEL */
-#rpanel{width:225px;background:var(--surface);border-left:1px solid var(--border);
+#rpanel{width:220px;background:var(--surface);border-left:1px solid var(--border);
   display:flex;flex-direction:column;z-index:90;flex-shrink:0;
-  overflow-y:auto;scrollbar-width:thin;transition:transform var(--tr),background var(--tr)}
-#rpanel.hide{transform:translateX(225px)}
+  overflow-y:auto;scrollbar-width:thin;transition:background var(--tr)}
+#rpanel.hide{display:none}
 .ps{padding:12px;border-bottom:1px solid var(--border)}
 .pt{font-size:9.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
   color:var(--muted);margin-bottom:9px}
@@ -446,6 +446,15 @@ body[data-cursor=default] #cbox{cursor:default!important}
       </select>
     </div>
   </div>
+  <!-- PAGE COLOR -->
+  <div class="ps">
+    <div class="pt">Page Background</div>
+    <div class="pr"><label>Color</label><input type="color" id="pgcol" value="#f7f5f0"><label style="min-width:0;font-size:11px;margin-left:4px">Page color</label></div>
+    <div class="pr" style="flex-wrap:wrap;gap:5px" id="pgswatches"></div>
+    <div class="pr" style="margin-top:4px">
+      <button class="lb" id="bpgreset" style="flex:1;font-size:10px">↺ Reset Default</button>
+    </div>
+  </div>
   <!-- IMAGE OPTIONS (shows when image selected) -->
   <div class="ps" id="imgpanel" style="display:none">
     <div class="pt">Image</div>
@@ -550,7 +559,7 @@ const S={
   sc:'#1a1a2e', fc:'#ffffff', fe:false,
   sw:2, so:1, fo:.2,
   fsz:18, ff:'Segoe UI', bold:false, italic:false, ul:false,
-  gs:20, snap:false, grid:true, bgt:'grid', dark:false,
+  gs:20, snap:false, grid:true, bgt:'grid', dark:false, pageColor:'#f7f5f0',
   al:0, layers:[{n:'Layer 1',v:true}],
   ds:null, dshp:null, drawing:false,
   panning:false, panSt:null, clip:null,
@@ -560,7 +569,7 @@ const S={
 };
 
 /* ── CANVAS ── */
-const CW=5000, CH=3600;
+const CW=3840, CH=2160; /* large enough for infinite feel */
 const cbox=document.getElementById('cbox');
 const canvas=new fabric.Canvas('wc',{
   width:CW, height:CH,
@@ -570,9 +579,14 @@ const canvas=new fabric.Canvas('wc',{
 
 function fit(){
   const cw=cbox.clientWidth, ch=cbox.clientHeight;
-  const z=Math.min(cw/CW,ch/CH)*.78;
+  /* zoom so canvas fills ~95% of viewport — natural, not tiny */
+  const z=Math.min(cw/CW,ch/CH)*.95;
   canvas.setZoom(z);
-  canvas.absolutePan(new fabric.Point(-(cw/2-CW*z/2),-(ch/2-CH*z/2)));
+  /* center canvas in viewport */
+  canvas.absolutePan(new fabric.Point(
+    -(cw/2 - CW*z/2),
+    -(ch/2 - CH*z/2)
+  ));
   updZ();
 }
 
@@ -586,8 +600,18 @@ function ensureGC(){
 }
 function drawGrid(){
   ensureGC();const g=gc.getContext('2d');g.clearRect(0,0,gc.width,gc.height);
-  if(!S.grid)return;
+
   const z=canvas.getZoom(),vp=canvas.viewportTransform;
+
+  /* page border shadow */
+  const px=vp[4],py=vp[5],pw=CW*z,ph=CH*z;
+  g.save();
+  g.shadowColor='rgba(0,0,0,.22)';g.shadowBlur=18;g.shadowOffsetX=4;g.shadowOffsetY=4;
+  g.strokeStyle=S.dark?'rgba(255,255,255,.08)':'rgba(0,0,0,.14)';
+  g.lineWidth=1;g.strokeRect(px,py,pw,ph);
+  g.restore();
+
+  if(!S.grid)return;
   const gs=S.gs*z,ox=vp[4]%gs,oy=vp[5]%gs,dk=S.dark;
   if(S.bgt==='dots'){
     g.fillStyle=dk?'rgba(240,237,232,.16)':'rgba(26,26,46,.16)';
@@ -627,6 +651,7 @@ function initPages(){S.pages=[{json:null,stk:[]}];S.ap=0;renderTabs();}
 function savePage(){
   S.pages[S.ap]={
     json:canvas.toJSON(['li']),
+    pageColor: S.pageColor,
     stk:S.stickies.map(w=>({
       l:parseInt(w.style.left||'0'),t:parseInt(w.style.top||'0'),
       txt:w.querySelector('.snta').value,
@@ -638,8 +663,12 @@ function savePage(){
 function loadPage(idx){
   S.stickies.forEach(w=>w.remove());S.stickies=[];
   const p=S.pages[idx];
+  /* restore page-specific color, default white-ish */
+  S.pageColor = (p&&p.pageColor) ? p.pageColor : '#f7f5f0';
+  applyPageColor(S.pageColor);
+  buildPageSwatches();
   if(p&&p.json){canvas.loadFromJSON(p.json,()=>{canvas.renderAll();updN();});}
-  else{canvas.clear();canvas.setBackgroundColor(S.dark?'#141420':'#f7f5f0',canvas.renderAll.bind(canvas));updN();}
+  else{canvas.clear();canvas.setBackgroundColor(S.pageColor,canvas.renderAll.bind(canvas));updN();}
   if(p&&p.stk)p.stk.forEach(d=>{const w=mkSticky(d.l,d.t,d.txt,d.bg,true);cbox.appendChild(w);S.stickies.push(w);});
   S.ap=idx;
   document.getElementById('spage').textContent=`Page:${idx+1}/${S.pages.length}`;
@@ -1026,7 +1055,35 @@ document.getElementById('bb').addEventListener('click',()=>{S.bold=!S.bold;apply
 document.getElementById('bi').addEventListener('click',()=>{S.italic=!S.italic;applyToSel();});
 document.getElementById('bu').addEventListener('click',()=>{S.ul=!S.ul;applyToSel();});
 
-/* ── SWATCHES ── */
+/* ── PAGE COLOR ── */
+const PAGE_PRESETS=['#f7f5f0','#ffffff','#1a1a2e','#0d1117','#fef9ef',
+  '#e8f4f8','#f0f7ee','#fff0f3','#f5f0ff','#1e1e2e'];
+
+function applyPageColor(c){
+  S.pageColor=c;
+  canvas.setBackgroundColor(c,canvas.renderAll.bind(canvas));
+  const el=document.getElementById('pgcol');if(el)el.value=c;
+  /* update swatch highlights */
+  document.querySelectorAll('.pgsw').forEach(s=>s.classList.toggle('on',s.dataset.c===c));
+}
+
+function buildPageSwatches(){
+  const g=document.getElementById('pgswatches');if(!g)return;g.innerHTML='';
+  PAGE_PRESETS.forEach(c=>{
+    const d=document.createElement('div');
+    d.className='sw pgsw'+(c===S.pageColor?' on':'');
+    d.dataset.c=c;d.style.background=c;
+    if(c==='#ffffff'||c==='#f7f5f0')d.style.border='1.5px solid #ccc';
+    d.title=c;
+    d.addEventListener('click',()=>applyPageColor(c));
+    g.appendChild(d);
+  });
+}
+
+document.getElementById('pgcol').addEventListener('input',e=>applyPageColor(e.target.value));
+document.getElementById('bpgreset').addEventListener('click',()=>applyPageColor('#f7f5f0'));
+
+
 function buildSW(){
   const g=document.getElementById('swatches');g.innerHTML='';
   SWATCHES.forEach(c=>{
@@ -1065,7 +1122,7 @@ document.getElementById('bgt').addEventListener('change',e=>{S.bgt=e.target.valu
 document.getElementById('bgrid').addEventListener('click',()=>{S.grid=!S.grid;drawGrid();toast(S.grid?'Grid on':'Grid off');});
 document.getElementById('btheme').addEventListener('click',()=>{
   S.dark=!S.dark;document.body.setAttribute('data-theme',S.dark?'dark':'light');
-  canvas.setBackgroundColor(S.dark?'#141420':'#f7f5f0',canvas.renderAll.bind(canvas));
+  /* canvas page color is INDEPENDENT of theme — do not change it */
   document.getElementById('btheme').textContent=S.dark?'☀':'☾';drawGrid();
 });
 document.getElementById('bundo').addEventListener('click',undo);
@@ -1074,7 +1131,7 @@ document.getElementById('bdel').addEventListener('click',delSel);
 document.getElementById('bclr').addEventListener('click',()=>{
   if(!confirm('Clear canvas?'))return;
   canvas.clear();S.stickies.forEach(w=>w.remove());S.stickies=[];
-  canvas.setBackgroundColor(S.dark?'#141420':'#f7f5f0',canvas.renderAll.bind(canvas));
+  canvas.setBackgroundColor(S.pageColor,canvas.renderAll.bind(canvas));
   hist();updN();toast('Cleared');
 });
 document.getElementById('bfit').addEventListener('click',fit);
@@ -1100,7 +1157,7 @@ document.getElementById('hclose').addEventListener('click',()=>document.getEleme
 /* ── SAVE / LOAD ── */
 document.getElementById('bsave').addEventListener('click',()=>{
   savePage();
-  const data={v:3,pages:S.pages,layers:S.layers,bgt:S.bgt,dark:S.dark,ap:S.ap};
+  const data={v:3,pages:S.pages,layers:S.layers,bgt:S.bgt,dark:S.dark,ap:S.ap,pageColor:S.pageColor};
   localStorage.setItem('wb3',JSON.stringify(data));
   const bl=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.download='board-'+Date.now()+'.json';a.href=URL.createObjectURL(bl);a.click();
@@ -1123,9 +1180,10 @@ document.getElementById('bload').addEventListener('click',()=>{
 document.getElementById('bnew').addEventListener('click',()=>{
   if(!confirm('New board? Unsaved data lost.'))return;
   canvas.clear();S.stickies.forEach(w=>w.remove());S.stickies=[];
-  canvas.setBackgroundColor(S.dark?'#141420':'#f7f5f0',canvas.renderAll.bind(canvas));
+  canvas.setBackgroundColor(S.pageColor,canvas.renderAll.bind(canvas));
   S.layers=[{n:'Layer 1',v:true}];S.al=0;
-  S.pages=[{json:null,stk:[]}];S.ap=0;
+  S.pages=[{json:null,stk:[]}];S.ap=0;S.pageColor='#f7f5f0';
+  applyPageColor(S.pageColor);buildPageSwatches();
   renderLayers();renderTabs();hist();updN();toast('New board');
 });
 
@@ -1156,6 +1214,21 @@ document.addEventListener('keydown',e=>{
 
 /* ── TOOL BUTTONS ── */
 document.querySelectorAll('.tbtn2[data-tool]').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
+
+/* Position tooltips using fixed coords on hover */
+document.querySelectorAll('.tbtn2').forEach(btn=>{
+  const tip=btn.querySelector('.tip');
+  if(!tip)return;
+  btn.addEventListener('mouseenter',()=>{
+    const r=btn.getBoundingClientRect();
+    tip.style.left=(r.right+10)+'px';
+    tip.style.top=(r.top+r.height/2-tip.offsetHeight/2)+'px';
+    /* re-check after paint for height */
+    requestAnimationFrame(()=>{
+      tip.style.top=(r.top+r.height/2-tip.offsetHeight/2)+'px';
+    });
+  });
+});
 
 /* ── UTILS ── */
 function rgba(hex,a=1){
@@ -1188,7 +1261,7 @@ cbox.addEventListener('touchmove',e=>{
 cbox.addEventListener('touchend',()=>ptd=null);
 
 /* ── INIT ── */
-buildSW();renderLayers();initPages();fit();hist();updN();
+buildSW();buildPageSwatches();renderLayers();initPages();fit();hist();updN();
 
 /* Autosave restore */
 try{
